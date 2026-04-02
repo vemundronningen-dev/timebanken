@@ -2,52 +2,16 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { timeEntries, projects } from "@/db/schema";
 import { eq, and, gte, isNull } from "drizzle-orm";
-import { DEMO_USER_ID } from "@/lib/user";
-
-export async function POST(req: Request) {
-  const { projectId, startTime, endTime, comment } = await req.json();
-
-  if (!projectId || !startTime || !endTime) {
-    return NextResponse.json(
-      { error: "projectId, startTime and endTime are required" },
-      { status: 400 }
-    );
-  }
-
-  const start = new Date(startTime);
-  const end = new Date(endTime);
-
-  if (end <= start) {
-    return NextResponse.json(
-      { error: "End time must be after start time" },
-      { status: 400 }
-    );
-  }
-
-  const durationMinutes = Math.round(
-    (end.getTime() - start.getTime()) / 60000
-  );
-
-  const [entry] = await db
-    .insert(timeEntries)
-    .values({
-      userId: DEMO_USER_ID,
-      projectId: Number(projectId),
-      startTime: start,
-      endTime: end,
-      durationMinutes,
-      comment: comment?.trim() || null,
-    })
-    .returning();
-
-  return NextResponse.json(entry, { status: 201 });
-}
+import { requireAuth } from "@/lib/session";
 
 export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const filter = searchParams.get("filter"); // "today" | "active" | "all"
+  const userId = await requireAuth();
+  if (!userId) return NextResponse.json({ error: "Uautorisert" }, { status: 401 });
 
-  const conditions = [eq(timeEntries.userId, DEMO_USER_ID)];
+  const { searchParams } = new URL(req.url);
+  const filter = searchParams.get("filter");
+
+  const conditions = [eq(timeEntries.userId, userId)];
 
   if (filter === "today") {
     const todayStart = new Date();
@@ -74,4 +38,44 @@ export async function GET(req: Request) {
     .orderBy(timeEntries.startTime);
 
   return NextResponse.json(rows);
+}
+
+export async function POST(req: Request) {
+  const userId = await requireAuth();
+  if (!userId) return NextResponse.json({ error: "Uautorisert" }, { status: 401 });
+
+  const { projectId, startTime, endTime, comment } = await req.json();
+
+  if (!projectId || !startTime || !endTime) {
+    return NextResponse.json(
+      { error: "projectId, startTime og endTime er påkrevd" },
+      { status: 400 }
+    );
+  }
+
+  const start = new Date(startTime);
+  const end = new Date(endTime);
+
+  if (end <= start) {
+    return NextResponse.json(
+      { error: "Sluttid må være etter starttid" },
+      { status: 400 }
+    );
+  }
+
+  const durationMinutes = Math.round((end.getTime() - start.getTime()) / 60000);
+
+  const [entry] = await db
+    .insert(timeEntries)
+    .values({
+      userId,
+      projectId: Number(projectId),
+      startTime: start,
+      endTime: end,
+      durationMinutes,
+      comment: comment?.trim() || null,
+    })
+    .returning();
+
+  return NextResponse.json(entry, { status: 201 });
 }

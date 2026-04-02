@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, Suspense } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 function LoginForm() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const successMessage = searchParams.get("melding");
 
@@ -19,9 +19,17 @@ function LoginForm() {
     setError("");
     setLoading(true);
     try {
-      // Placeholder — legg til NextAuth eller egen auth-logikk her
-      await new Promise((r) => setTimeout(r, 500));
-      setError("Innlogging er ikke implementert ennå.");
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Noe gikk galt. Prøv igjen.");
+        return;
+      }
+      router.push("/dashboard");
     } finally {
       setLoading(false);
     }
@@ -44,9 +52,7 @@ function LoginForm() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                E-post
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">E-post</label>
               <input
                 type="email"
                 value={email}
@@ -59,9 +65,7 @@ function LoginForm() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Passord
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Passord</label>
               <input
                 type="password"
                 value={password}
@@ -73,9 +77,7 @@ function LoginForm() {
               />
             </div>
 
-            {error && (
-              <p className="text-sm text-red-600">{error}</p>
-            )}
+            {error && <p className="text-sm text-red-600">{error}</p>}
 
             <button
               type="submit"
@@ -89,10 +91,7 @@ function LoginForm() {
 
         <p className="text-center text-sm text-gray-500 mt-5">
           Ny bruker?{" "}
-          <Link
-            href="/registrer"
-            className="text-blue-600 hover:text-blue-800 font-medium"
-          >
+          <Link href="/registrer" className="text-blue-600 hover:text-blue-800 font-medium">
             Registrer deg her
           </Link>
         </p>

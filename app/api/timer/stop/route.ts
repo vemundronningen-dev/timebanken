@@ -2,23 +2,23 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { timeEntries } from "@/db/schema";
 import { eq, isNull, and } from "drizzle-orm";
-import { DEMO_USER_ID } from "@/lib/user";
+import { requireAuth } from "@/lib/session";
 
 export async function POST(req: Request) {
+  const userId = await requireAuth();
+  if (!userId) return NextResponse.json({ error: "Uautorisert" }, { status: 401 });
+
   const body = await req.json().catch(() => ({}));
   const comment: string | undefined = body.comment?.trim() || undefined;
 
-  // Find active timer
   const [active] = await db
     .select()
     .from(timeEntries)
-    .where(
-      and(eq(timeEntries.userId, DEMO_USER_ID), isNull(timeEntries.endTime))
-    )
+    .where(and(eq(timeEntries.userId, userId), isNull(timeEntries.endTime)))
     .limit(1);
 
   if (!active) {
-    return NextResponse.json({ error: "No active timer" }, { status: 404 });
+    return NextResponse.json({ error: "Ingen aktiv timer" }, { status: 404 });
   }
 
   const now = new Date();

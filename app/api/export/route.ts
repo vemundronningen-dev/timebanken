@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { timeEntries, projects } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { DEMO_USER_ID } from "@/lib/user";
+import { requireAuth } from "@/lib/session";
 
 function escapeCSV(value: string | null | undefined): string {
   if (value == null) return "";
@@ -14,6 +14,9 @@ function escapeCSV(value: string | null | undefined): string {
 }
 
 export async function GET() {
+  const userId = await requireAuth();
+  if (!userId) return NextResponse.json({ error: "Uautorisert" }, { status: 401 });
+
   const rows = await db
     .select({
       id: timeEntries.id,
@@ -26,10 +29,10 @@ export async function GET() {
     })
     .from(timeEntries)
     .innerJoin(projects, eq(timeEntries.projectId, projects.id))
-    .where(eq(timeEntries.userId, DEMO_USER_ID))
+    .where(eq(timeEntries.userId, userId))
     .orderBy(timeEntries.startTime);
 
-  const header = "ID,Project,Start Time,End Time,Duration (min),Comment,Created At";
+  const header = "ID,Prosjekt,Starttid,Sluttid,Varighet (min),Kommentar,Opprettet";
   const csvRows = rows.map((r) =>
     [
       r.id,
@@ -47,7 +50,7 @@ export async function GET() {
   return new NextResponse(csv, {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="time-entries-${new Date().toISOString().slice(0, 10)}.csv"`,
+      "Content-Disposition": `attachment; filename="timer-${new Date().toISOString().slice(0, 10)}.csv"`,
     },
   });
 }
