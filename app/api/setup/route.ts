@@ -11,11 +11,17 @@ export async function GET() {
 
   await sql`
     CREATE TABLE IF NOT EXISTS users (
-      id         SERIAL PRIMARY KEY,
-      email      TEXT NOT NULL UNIQUE,
-      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      id            SERIAL PRIMARY KEY,
+      name          TEXT NOT NULL DEFAULT '',
+      email         TEXT NOT NULL UNIQUE,
+      password_hash TEXT,
+      created_at    TIMESTAMP NOT NULL DEFAULT NOW()
     )
   `;
+
+  // Add columns if table already existed without them
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS name TEXT NOT NULL DEFAULT ''`;
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT`;
 
   await sql`
     CREATE TABLE IF NOT EXISTS projects (
